@@ -68,6 +68,10 @@ Re-OCR specific pages that failed quality checks; only saves output that passes 
 | Copy to local SSD first | On exFAT NAS volumes, 16-way parallelism is *slower* than single-threaded. 4-way on local APFS = 4x speedup. NAS 上先拷到本地 SSD 再跑 |
 | AI vision can't judge OCR quality | Asking a VLM "is this OCR correct?" was off by 30% vs ground truth. Always diff against the original by hand. 用 AI 视觉评估 OCR 准确率偏差可达 30%，必须逐字对比原图 |
 
+## Pipeline / 管线架构
+
+See [docs/pipeline.md](docs/pipeline.md) for the full architecture diagram.
+
 ## Which model for which page / 什么页用什么模型
 
 | Page type 页面类型 | Recommended 推荐 |
