@@ -27,6 +27,8 @@ MODEL = "zai-org/GLM-4.5V"
 MAX_TOKENS = 4096
 TEMPERATURE = 0.1
 MAX_RETRIES = 0
+# 单页请求超时（秒）。密集竖排/大页面在 20s 下必超时——那是默认值太紧，不是模型不行。
+HTTP_TIMEOUT = float(os.environ.get("OCR_TIMEOUT", "180"))
 
 PROMPT = """请将这张古籍页面的文字完整转录为繁体中文。
 这是单页竖排木刻版古籍，从右到左从上到下阅读。
@@ -122,7 +124,7 @@ def ocr_page(img_path, api_key):
                     "max_tokens": MAX_TOKENS,
                     "temperature": TEMPERATURE
                 },
-                timeout=httpx.Timeout(20.0, connect=8.0)
+                timeout=httpx.Timeout(HTTP_TIMEOUT, connect=8.0)
             )
             data = resp.json()
             
@@ -215,22 +217,24 @@ def process_volume(vol_name, limit=None):
             log(f"  [{i+1}/{total}] {img_name} ❌ {error} ({elapsed:.0f}s)")
             failed += 1
             if "HALLUCINATION" in str(error):
-                # 幻觉页仍保存但标记
+                # 幻觉页仍保存但标记（已带标记写盘，视为处理过，不再重跑）
                 vol_lines.append(f"\n> —— {img_name} [⚠幻觉] ——\n")
                 vol_lines.append(text)
                 vol_lines.append("")
+                completed.add(img_name)
+            # 其余错误（网络/API）：**不记入进度**，下次重跑自动补这一页
         else:
             log(f"  [{i+1}/{total}] {img_name} ✓ {len(text)}字 ({elapsed:.0f}s)")
             success += 1
             vol_lines.append(f"\n> —— {img_name} ——\n")
             vol_lines.append(text)
             vol_lines.append("")
+            completed.add(img_name)
         
         # 每10页写盘
         if (success + failed) % 10 == 0:
             with open(vol_md_path, "w") as f:
                 f.write('\n'.join(vol_lines))
-            completed.add(img_name)
             progress[vol_key] = list(completed)
             save_progress(progress)
         
@@ -242,11 +246,13 @@ def process_volume(vol_name, limit=None):
     # 最终写盘
     with open(vol_md_path, "w") as f:
         f.write('\n'.join(vol_lines))
-    completed.update(images)
     progress[vol_key] = list(completed)
     save_progress(progress)
     
     log(f"{vol_name} 完成: {success}✓ {failed}✗ {skipped}跳")
+    pending = [im for im in images if im not in completed]
+    if pending:
+        log(f"⚠ 还有 {len(pending)} 页未完成（失败页不记进度）——重跑同一条命令即可补齐")
     return success, failed, skipped
 
 def main():
@@ -278,7 +284,7 @@ def main():
                 "messages": [{"role": "user", "content": "回复OK"}],
                 "max_tokens": 10
             },
-            timeout=httpx.Timeout(20.0, connect=8.0)
+            timeout=httpx.Timeout(HTTP_TIMEOUT, connect=8.0)
         )
         if resp.status_code == 200:
             log("✓ API连通正常")
