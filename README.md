@@ -48,7 +48,9 @@ python3 tools/ocr_vlm_batch.py --vol VOL-01             # 整卷，断点续传
 ```
 
 产出：`$OCR_OUTPUT_DIR/VOL-01.md`（逐页带页码标记），另有 `_ocr.log` 与 `_progress.json`。
-中断了直接重跑同一条命令，已完成的页会跳过。
+
+中断了直接重跑同一条命令：已完成的页跳过，**失败的页不会跳过**（失败不记进度），重跑即自动补齐。
+密集竖排/大页面较慢，单页默认超时 180 秒，可用 `OCR_TIMEOUT`（秒）调整。
 
 **第三步：清洗与补漏。**
 
@@ -92,7 +94,7 @@ python3 tools/fix_hallucinations.py 243,251   # 对质检不合格的页重跑�
 
 | 工具 | 做什么 |
 |---|---|
-| `tools/ocr_vlm_batch.py` | 视觉模型批量 OCR（GLM-4.5V / SiliconFlow），**四层幻觉检测** + 断点续传 + 逐页重试 |
+| `tools/ocr_vlm_batch.py` | 视觉模型批量 OCR（GLM-4.5V / SiliconFlow），**四层幻觉检测** + 断点续传（失败页不记进度，重跑自动补齐）；单页超时用 `OCR_TIMEOUT` 调 |
 | `tools/ocr_single.py` + `tools/ocr_batch_v5.sh` | 离线 tesseract + PyMuPDF 管线；每册独立子进程，超时 `kill -9`（MuPDF 卡死的唯一可靠解） |
 | `tools/split_double_pages.py` | 双页展开拆分；横版页切左右半，竖版页直接缩放；输出 ≤1500px JPEG q80，优先复用已有图片 |
 | `tools/fix_hallucinations.py` | 对质检不合格的页重跑 OCR，**只有通过质量闸的产出才保存** |
@@ -139,7 +141,7 @@ L4  3-gram 循环（≤10 种且占比 >50%） → 拒
 
 ![OCR before/after](examples/before_after.jpg)
 
-*合成样张：印刷宋体 + 扫描噪点，**非真实扫描件**——如实标注，仅演示印刷体中文的识别效果。真实木刻影印件的对照样张列入待办。*
+*真实运行结果：左为《国粹学报》第四十二期（民國鉛印本，Wikimedia Commons，Public domain）原页，右为 `tools/ocr_vlm_batch.py` 的**原始输出**（697 字 / 51 秒，未人工修改）。来源与复现步骤见 [examples/README.md](examples/README.md)，同一次运行的输出原文见 [examples/demo-scan-output.md](examples/demo-scan-output.md)。*
 
 ---
 

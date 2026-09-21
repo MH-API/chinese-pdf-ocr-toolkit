@@ -74,7 +74,7 @@ python3 tools/fix_hallucinations.py 243,251   # 对质检不合格的页重跑�
 
 - Python 3.9+；依赖 `pymupdf`、`pillow`、`httpx`
 - 离线路另需 tesseract（含 `chi_sim` 语言包）
-- 环境变量：`SILICONFLOW_API_KEY`、`OCR_PAGES_DIR`、`OCR_OUTPUT_DIR`；离线路另用 `OCR_PDF_DIR`
+- 环境变量：`SILICONFLOW_API_KEY`、`OCR_PAGES_DIR`、`OCR_OUTPUT_DIR`；单页超时 `OCR_TIMEOUT`（秒，默认 180）；离线路另用 `OCR_PDF_DIR`
 - 首次跑视觉模型不需要下载模型（走 API）；MinerU 若使用则首次约 1 GB 模型
 
 ## 已知坑 / Known pitfalls
@@ -88,6 +88,7 @@ python3 tools/fix_hallucinations.py 243,251   # 对质检不合格的页重跑�
 | 外置卷并行更慢 | 先拷到本地 SSD（APFS）再跑 |
 | 页号对不上，重跑补页错位 | 拆分器的编号规则要贯穿全程，补页前先核对文件名 |
 | `fix_hallucinations.py` 找不到页 | 它按 `*_page_NNNN.png` 匹配，页图命名要合规 |
+| **断点续传反而漏页** | 「完成」的判据必须钉死：只有**真产出内容**的页才准记进进度文件。若在收尾处批量标记全部页（含失败页），失败页会被永久跳过、静默丢失。改这类代码时先写清「什么算完成」，并跑一次「全失败」用例证明进度文件是空的 |
 
 ## 交付 / Deliverable
 
